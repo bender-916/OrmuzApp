@@ -1,32 +1,55 @@
-# OrmuzApp — Guia del Desarrollador
+# OrmuzApp — Mapa de precios de gasolina en España
 
-App Android que muestra en un mapa interactivo los precios de gasolina en Espana, con marcadores color-coded (verde = barato, rojo = caro).
+> **Vibecoded** con [Claude Code](https://claude.ai/code) — generado, auditado y depurado mediante IA.
 
-**Stack**: React Native 0.84.1 + TypeScript + MapLibre (OpenStreetMap) + API del Ministerio de Industria de Espana.
+App Android que muestra en un mapa interactivo los precios de gasolina en España, con marcadores color-coded (verde = barato, rojo = caro). Carga únicamente las gasolineras de la provincia donde estás, sin descargar los ~12.000 registros nacionales.
+
+**Stack**: React Native 0.84.1 · TypeScript · MapLibre v11 (OpenStreetMap) · API del Ministerio de Industria de España
+
+---
+
+## Capturas
+
+> Mapa con marcadores de precio por gasolinera y detalle al pulsar.
+
+---
+
+## Cómo funciona
+
+1. La app obtiene tu ubicación GPS.
+2. Detecta en qué provincia estás usando las 52 provincias del INE.
+3. Llama únicamente al endpoint de esa provincia:
+   ```
+   GET /EstacionesTerrestres/FiltroProvincia/{ID}
+   ```
+   ~500 estaciones y ~300 KB en vez de 12.000 estaciones y ~4 MB.
+4. Los marcadores se colorean proporcionalmente al precio: verde (más barato) → rojo (más caro).
+5. Al cruzar a otra provincia, recarga automáticamente las estaciones de la nueva provincia.
+6. Los datos se cachean por provincia con un TTL configurable. Si no hay red, muestra el caché aunque haya expirado.
 
 ---
 
 ## Requisitos previos
 
-| Herramienta | Version | Notas |
+| Herramienta | Versión | Notas |
 |-------------|---------|-------|
 | **Node.js** | >= 22.11.0 | [nodejs.org](https://nodejs.org/) |
 | **JDK** | 17+ | Recomendado: [Adoptium Temurin 17](https://adoptium.net/) |
-| **Android Studio** | Ultima version | Para SDK, emulador y herramientas de build |
-| **Android SDK** | 36 | Instalar desde Android Studio > SDK Manager |
-| **Build Tools** | 36.0.0 | Instalar desde SDK Manager > SDK Tools |
-| **NDK** | 27.1.12297006 | Instalar desde SDK Manager > SDK Tools |
+| **Android Studio** | Última versión | SDK, emulador y herramientas de build |
+| **Android SDK** | 36 | Android Studio > SDK Manager |
+| **Build Tools** | 36.0.0 | SDK Manager > SDK Tools |
+| **NDK** | 27.1.12297006 | SDK Manager > SDK Tools |
 
 ### Variables de entorno (Windows)
 
-Agregar a las variables de entorno del sistema:
+Agrega al sistema:
 
 ```
 ANDROID_HOME = C:\Users\<tu-usuario>\AppData\Local\Android\Sdk
 JAVA_HOME    = C:\Program Files\Eclipse Adoptium\jdk-17.x.x
 ```
 
-Agregar al `PATH`:
+Agrega al `PATH`:
 
 ```
 %ANDROID_HOME%\platform-tools
@@ -34,7 +57,7 @@ Agregar al `PATH`:
 %ANDROID_HOME%\tools\bin
 ```
 
-Verificar:
+Verifica:
 
 ```bash
 node --version    # >= 22.11.0
@@ -44,14 +67,15 @@ adb --version     # debe responder
 
 ---
 
-## Instalacion del proyecto
+## Instalación
 
 ```bash
-cd E:\Ormuz-app
+git clone https://github.com/AntonioVVilla/OrmuzApp.git
+cd OrmuzApp
 npm install
 ```
 
-Verificar que el entorno esta completo:
+Diagnóstico del entorno:
 
 ```bash
 npx react-native doctor
@@ -61,46 +85,46 @@ npx react-native doctor
 
 ## Previsualizar la app
 
-### Opcion A: Dispositivo fisico por USB (recomendado)
+### Opción A — Dispositivo físico por USB (recomendado)
 
-La opcion mas rapida y fiel a la experiencia real. **Ideal para OrmuzApp** porque permite probar GPS real y rendimiento real del mapa MapLibre.
+La más rápida y fiel. Ideal para probar GPS real y rendimiento real del mapa.
 
-1. En el telefono Android, ve a **Ajustes > Acerca del telefono** y toca 7 veces **Numero de compilacion** para activar Opciones de desarrollador.
-2. En **Opciones de desarrollador**, activa **Depuracion USB**.
-3. Conecta el telefono por USB al PC.
-4. Verifica la conexion:
+1. En el teléfono: **Ajustes > Acerca del teléfono** — toca 7 veces **Número de compilación** para activar Opciones de desarrollador.
+2. En **Opciones de desarrollador**, activa **Depuración USB**.
+3. Conecta el teléfono por USB.
+4. Verifica:
 
 ```bash
-adb devices
-# Debe mostrar tu dispositivo en la lista
+adb devices   # debe mostrar tu dispositivo
 ```
 
-5. Inicia Metro y la app:
+5. Lanza:
 
 ```bash
-# Terminal 1: servidor Metro
+# Terminal 1
 npm start
 
-# Terminal 2: build e instalar en dispositivo
+# Terminal 2
 npm run android
 ```
 
-6. La app se instala automaticamente y se abre. Los cambios en codigo se reflejan al instante gracias a **Fast Refresh**.
-
-> **Tip**: Si tienes problemas de conexion, prueba `adb reverse tcp:8081 tcp:8081` para el tunel Metro.
+> **Tip**: Si Metro no conecta, ejecuta `adb reverse tcp:8081 tcp:8081`.
 
 ---
 
-### Opcion B: Emulador Android (Android Studio AVD)
+### Opción B — Emulador Android Studio (AVD)
 
-Buena alternativa cuando no tienes un dispositivo fisico a mano.
-
-1. Abre Android Studio > **Tools > Device Manager** (antes AVD Manager).
-2. Crea un nuevo dispositivo virtual:
+1. Android Studio > **Tools > Device Manager** > crea un AVD:
    - Hardware: **Pixel 7** (o similar)
-   - System Image: **API 34+** (con Google APIs si quieres Google Play)
-   - RAM: al menos 2 GB asignados al emulador
-3. Lanza el emulador desde Device Manager.
+   - System Image: **API 34+** con Google APIs
+   - RAM: mínimo 2 GB
+2. Lanza el emulador.
+3. Simula ubicación en Madrid (la API solo cubre España):
+
+```bash
+adb emu geo fix -3.7038 40.4168
+```
+
 4. Ejecuta:
 
 ```bash
@@ -108,19 +132,17 @@ npm start
 npm run android
 ```
 
-> **Nota**: El emulador consume ~4-8 GB de RAM. El GPS es simulado (puedes configurar coordenadas ficticias desde los controles extendidos del emulador con `...` > Location).
+> **Nota**: El emulador consume ~4-8 GB de RAM. El GPS es simulado.
 
 ---
 
-### Opcion C: Build APK debug e instalar manualmente
-
-Util para compartir el APK o instalar en un dispositivo sin conexion USB directa.
+### Opción C — APK debug para instalar manualmente
 
 ```bash
 cd android && ./gradlew assembleDebug
 ```
 
-El APK se genera en:
+APK generado en:
 
 ```
 android/app/build/outputs/apk/debug/app-debug.apk
@@ -132,19 +154,15 @@ Instalar en dispositivo conectado:
 adb install android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-O transferir el archivo `.apk` al telefono e instalarlo manualmente (requiere activar "Origenes desconocidos" en ajustes de seguridad).
-
 ---
 
-### Opcion D: Build con Docker (produccion)
-
-Para generar el APK release sin necesidad de instalar Android SDK localmente.
+### Opción D — Docker (sin instalar SDK localmente)
 
 ```bash
 docker-compose up --build
 ```
 
-El APK resultante queda en:
+APK resultante en:
 
 ```
 ./output/app-release-unsigned.apk
@@ -152,57 +170,132 @@ El APK resultante queda en:
 
 ---
 
-## Comandos utiles
+## Comandos útiles
 
-| Comando | Descripcion |
+| Comando | Descripción |
 |---------|-------------|
-| `npm start` | Inicia el servidor Metro (bundler JS) |
-| `npm run android` | Compila e instala en dispositivo/emulador Android |
-| `npm run lint` | Ejecuta ESLint sobre el codigo |
-| `npm test` | Ejecuta tests con Jest |
-| `cd android && ./gradlew assembleDebug` | Genera APK debug |
-| `cd android && ./gradlew assembleRelease` | Genera APK release |
-| `adb devices` | Lista dispositivos Android conectados |
-| `adb logcat *:E` | Muestra logs de errores del dispositivo |
-| `adb reverse tcp:8081 tcp:8081` | Tunel para Metro cuando el dispositivo no lo detecta |
-| `npx react-native doctor` | Diagnostica problemas del entorno |
+| `npm start` | Inicia Metro (bundler JS) |
+| `npm run android` | Compila e instala en dispositivo/emulador |
+| `npm run lint` | ESLint |
+| `npm test` | Jest |
+| `cd android && ./gradlew assembleDebug` | APK debug |
+| `cd android && ./gradlew assembleRelease` | APK release |
+| `cd android && ./gradlew clean` | Limpia caches de build |
+| `adb devices` | Lista dispositivos conectados |
+| `adb logcat *:E` | Logs de error del dispositivo |
+| `adb reverse tcp:8081 tcp:8081` | Túnel Metro (USB) |
+| `adb emu geo fix <lng> <lat>` | Simula GPS en emulador |
+| `npx tsc --noEmit` | Verifica TypeScript sin compilar |
+| `npx react-native doctor` | Diagnóstico del entorno |
 
 ### Atajos en la app (modo desarrollo)
 
-- **Ctrl + M** (en dispositivo/emulador): Abre el Dev Menu de React Native
-- **R R** (doble R): Recarga completa de la app
-- Fast Refresh se activa automaticamente al guardar archivos
+- **Ctrl+M** en emulador: Dev Menu
+- **R R** (doble R): Recarga completa
+- Fast Refresh se activa automáticamente al guardar archivos
 
 ---
 
 ## Estructura del proyecto
 
 ```
-E:/Ormuz-app/
-├── App.tsx                         # Componente raiz
+OrmuzApp/
+├── App.tsx                         # Componente raíz
 ├── index.js                        # Entry point React Native
-├── package.json                    # Dependencias y scripts
-├── tsconfig.json                   # Config TypeScript
-├── babel.config.js                 # Config Babel (incluye reanimated plugin)
-├── metro.config.js                 # Config Metro bundler
-├── Dockerfile                      # Build APK en Docker
-├── docker-compose.yml              # Orquestacion Docker
-├── android/                        # Codigo nativo Android
-│   ├── build.gradle                # Config Gradle raiz (SDK 36, Kotlin 2.1.20)
-│   ├── app/build.gradle            # Config app (minSdk 24, targetSdk 36)
+├── package.json
+├── tsconfig.json
+├── babel.config.js                 # Plugin de reanimated
+├── metro.config.js
+├── Dockerfile
+├── docker-compose.yml
+├── android/
+│   ├── build.gradle                # SDK 36, Kotlin 2.1.20, Gradle 8.13
+│   ├── gradle.properties           # New Architecture ON, Hermes ON
 │   └── app/src/main/
-│       └── AndroidManifest.xml     # Permisos: INTERNET, GPS
+│       └── AndroidManifest.xml     # Permisos: INTERNET, ACCESS_FINE_LOCATION
 └── src/
     ├── components/
-    │   ├── Map/                    # MapView, StationMarker, MarkerCallout
-    │   ├── UI/                     # FuelTypeSelector, SearchRadius, Loading, Error
-    │   └── StationDetail/          # StationDetailSheet, PriceRow
-    ├── hooks/                      # useLocation, useStations, usePriceColors
-    ├── services/                   # api, parser, geo, cache
-    ├── context/                    # StationContext (React Context + useReducer)
-    ├── utils/                      # colors, constants, formatPrice
-    └── types/                      # station.ts, api.ts
+    │   ├── Map/
+    │   │   ├── MapView.tsx          # Mapa MapLibre v11 con cámara y marcadores
+    │   │   └── StationMarker.tsx    # Marcador con burbuja de precio color-coded
+    │   ├── UI/
+    │   │   ├── FuelTypeSelector.tsx # Selector de tipo de combustible
+    │   │   ├── SearchRadius.tsx     # Selector de radio de búsqueda
+    │   │   ├── LoadingView.tsx      # Spinner de carga
+    │   │   └── ErrorView.tsx        # Pantalla de error con reintentar
+    │   └── StationDetail/
+    │       ├── StationDetailSheet.tsx  # Bottom sheet al pulsar marcador
+    │       └── PriceRow.tsx            # Fila de precio por combustible
+    ├── hooks/
+    │   ├── useLocation.ts           # GPS con permisos Android
+    │   ├── useStations.ts           # Carga por provincia + caché + filtro proximidad
+    │   └── usePriceColors.ts        # Escala de color verde→rojo por precio
+    ├── services/
+    │   ├── api.ts                   # fetchStationsByProvince() — endpoint FiltroProvincia
+    │   ├── parser.ts                # Normaliza la respuesta cruda de la API
+    │   ├── geo.ts                   # Haversine, filtro por radio
+    │   └── cache.ts                 # AsyncStorage por provincia con TTL
+    ├── utils/
+    │   ├── provinces.ts             # 52 provincias con ID y coordenadas de centro
+    │   ├── colors.ts                # Interpolación de color y contraste
+    │   ├── constants.ts             # URLs, TTL caché, límites
+    │   └── formatPrice.ts           # Formato de precio para marcador y detalle
+    ├── context/
+    │   └── StationContext.tsx       # React Context + useReducer (estado global)
+    └── types/
+        ├── station.ts               # Tipos Station, Coordinate, FuelPrice
+        └── api.ts                   # Tipo RawAPIResponse (respuesta cruda ministerio)
 ```
+
+---
+
+## Arquitectura de carga de datos
+
+```
+GPS location
+    │
+    ▼
+getProvinceId(lat, lng)          ← nearest of 52 provinces by squared distance
+    │
+    ▼
+getCachedStations(provinceId)    ← AsyncStorage, TTL 15 min
+    │ miss
+    ▼
+fetchStationsByProvince(id)      ← GET /EstacionesTerrestres/FiltroProvincia/{id}
+    │                               ~500 stations, ~300 KB (vs 12,000 / 4 MB full)
+    ▼
+parseAllStations()               ← normaliza tipos, coordenadas, precios
+    │
+    ▼
+cacheStations(provinceId, data)  ← guarda en AsyncStorage
+    │
+    ▼
+filterByProximity()              ← Haversine, radio configurable
+    │
+    ▼
+usePriceColors()                 ← asigna color verde→rojo por precio relativo
+    │
+    ▼
+StationMarker[]                  ← renderiza en MapLibre
+```
+
+---
+
+## API del Ministerio de Industria
+
+Base URL: `https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes`
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /EstacionesTerrestres/` | Todas las estaciones (~12.000) |
+| `GET /EstacionesTerrestres/FiltroProvincia/{id}` | Por provincia (~500) ✅ usado |
+| `GET /EstacionesTerrestres/FiltroCCAA/{id}` | Por comunidad autónoma |
+| `GET /EstacionesTerrestres/FiltroMunicipio/{id}` | Por municipio |
+| `GET /EstacionesTerrestres/FiltroProducto/{id}` | Por tipo de combustible |
+
+Respuesta siempre JSON con `ResultadoConsulta: "OK"` y `ListaEESSPrecio: [...]`.
+
+Los IDs de provincia siguen el estándar INE (01 Álava → 52 Melilla).
 
 ---
 
@@ -211,23 +304,26 @@ E:/Ormuz-app/
 ### `ANDROID_HOME` no definido
 
 ```
-error Android SDK root is not set. Set it via ANDROID_HOME environment variable.
+error Android SDK root is not set.
 ```
 
-**Solucion**: Crear la variable de entorno `ANDROID_HOME` apuntando a la carpeta del SDK. Ruta tipica: `C:\Users\<usuario>\AppData\Local\Android\Sdk`.
+**Solución**: Variable de entorno `ANDROID_HOME` → `C:\Users\<usuario>\AppData\Local\Android\Sdk`.
+
+---
 
 ### Licencias de SDK no aceptadas
 
 ```
-Failed to install the following Android SDK packages: ...
+Failed to install the following Android SDK packages
 ```
 
-**Solucion**:
+**Solución**:
 
 ```bash
-sdkmanager --licenses
-# Aceptar todas con 'y'
+sdkmanager --licenses   # acepta todo con 'y'
 ```
+
+---
 
 ### Metro no conecta con el dispositivo
 
@@ -235,13 +331,15 @@ sdkmanager --licenses
 Could not connect to development server.
 ```
 
-**Solucion**:
+**Solución**:
 
 ```bash
 adb reverse tcp:8081 tcp:8081
 ```
 
-Si usas WiFi en vez de USB, asegurate de que el PC y el telefono estan en la misma red. Configura la IP del PC en el Dev Menu > Settings > Debug server host & port.
+Si usas WiFi, PC y teléfono deben estar en la misma red. Configura la IP del PC en Dev Menu > Settings > Debug server host & port.
+
+---
 
 ### Gradle falla por memoria
 
@@ -249,37 +347,62 @@ Si usas WiFi en vez de USB, asegurate de que el PC y el telefono estan en la mis
 GC overhead limit exceeded
 ```
 
-**Solucion**: Ya configurado en `gradle.properties` con `-Xmx4096m`. Si persiste, cierra otras aplicaciones para liberar RAM.
+**Solución**: Ya configurado en `gradle.properties` con `-Xmx4096m`. Si persiste, cierra otras apps.
 
-### El emulador no arranca (HAXM/Hyper-V)
+---
 
-**Solucion**: Asegurate de tener habilitado **Hyper-V** o **HAXM** en las caracteristicas de Windows. Android Studio usa WHPX en Windows 11 por defecto.
+### El emulador no arranca (HAXM / Hyper-V)
+
+**Solución**: Activa Hyper-V en Windows:
 
 ```
-Panel de control > Programas > Activar o desactivar caracteristicas de Windows > Hyper-V
+Panel de control > Programas > Activar o desactivar características de Windows > Hyper-V
 ```
 
-### `adb devices` no muestra el telefono
+---
 
-1. Verifica que la depuracion USB esta activa.
-2. Cambia el modo USB a **Transferencia de archivos (MTP)**.
-3. Acepta el dialogo de autorizacion en el telefono.
-4. Prueba con otro cable USB (algunos cables solo cargan).
+### `adb devices` no muestra el teléfono
+
+1. Depuración USB activa en el teléfono.
+2. Modo USB en **Transferencia de archivos (MTP)**.
+3. Acepta el diálogo de autorización en el teléfono.
+4. Prueba con otro cable (algunos cables son solo de carga).
+
+---
+
+### La app se queda cargando eternamente
+
+La API del ministerio puede ser lenta (~5-10 s) si hay mucha carga. La carga por provincia reduce el payload de ~4 MB a ~300 KB. Si el problema persiste, comprueba conectividad:
+
+```bash
+curl https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/FiltroProvincia/28
+```
 
 ---
 
 ## Dependencias principales
 
-| Paquete | Version | Proposito |
+| Paquete | Versión | Propósito |
 |---------|---------|-----------|
-| `react-native` | 0.84.1 | Framework movil |
-| `@maplibre/maplibre-react-native` | ^10.4.2 | Mapa con tiles vectoriales |
+| `react-native` | 0.84.1 | Framework móvil |
+| `@maplibre/maplibre-react-native` | ^11.0.0-beta.21 | Mapa vectorial (OpenStreetMap) |
 | `react-native-geolocation-service` | ^5.3.1 | GPS del dispositivo |
-| `react-native-permissions` | ^5.5.1 | Gestion de permisos Android |
-| `@gorhom/bottom-sheet` | ^5.2.8 | Sheet de detalle de estacion |
+| `react-native-permissions` | ^5.5.1 | Gestión de permisos Android |
+| `@gorhom/bottom-sheet` | ^5.2.8 | Sheet de detalle de estación |
 | `react-native-reanimated` | ^4.2.3 | Animaciones |
-| `react-native-gesture-handler` | ^2.30.0 | Gestos tactiles |
-| `@react-native-async-storage/async-storage` | ^3.0.1 | Cache local |
+| `react-native-gesture-handler` | ^2.30.0 | Gestos táctiles |
+| `@react-native-async-storage/async-storage` | ^3.0.1 | Caché local por provincia |
 | `react-native-safe-area-context` | ^5.5.2 | Safe area (notch) |
+| `react-native-worklets` | ^0.8.1 | Requerido por reanimated v4 |
 
-**Mapa base**: [OpenFreeMap](https://openfreemap.org/) — sin API key, tiles gratuitos.
+**Tiles del mapa**: [OpenFreeMap](https://openfreemap.org/) — sin API key, gratuito.
+
+---
+
+## Licencia
+
+MIT — ver [LICENSE](LICENSE).
+
+---
+
+> Vibecoded con Claude Code · [Anthropic](https://anthropic.com)

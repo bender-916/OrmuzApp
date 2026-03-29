@@ -1,6 +1,6 @@
 import React, {useCallback} from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import MapLibreGL from '@maplibre/maplibre-react-native';
+import {Marker} from '@maplibre/maplibre-react-native';
 import {Station} from '../../types/station';
 import {contrastTextColor} from '../../utils/colors';
 import {formatMarkerPrice} from '../../utils/formatPrice';
@@ -26,9 +26,9 @@ export default function StationMarker({
   }, [onPress, station]);
 
   return (
-    <MapLibreGL.MarkerView
+    <Marker
       id={`marker-${station.id}`}
-      coordinate={[station.longitude, station.latitude]}>
+      lngLat={[station.longitude, station.latitude]}>
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.8}
@@ -40,7 +40,7 @@ export default function StationMarker({
         </View>
         <View style={[styles.arrow, {borderTopColor: bgColor}]} />
       </TouchableOpacity>
-    </MapLibreGL.MarkerView>
+    </Marker>
   );
 }
 

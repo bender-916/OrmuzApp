@@ -1,11 +1,9 @@
 import React, {useRef} from 'react';
 import {StyleSheet, View} from 'react-native';
-import MapLibreGL, {type CameraRef} from '@maplibre/maplibre-react-native';
+import {Map, Camera, UserLocation, type CameraRef} from '@maplibre/maplibre-react-native';
 import {Station, Coordinate} from '../../types/station';
 import {MAP_STYLE_URL} from '../../utils/constants';
 import StationMarker from './StationMarker';
-
-MapLibreGL.setAccessToken(null);
 
 interface Props {
   stations: Station[];
@@ -24,20 +22,19 @@ export default function MapView({
 
   return (
     <View style={styles.container}>
-      <MapLibreGL.MapView
+      <Map
         style={styles.map}
         mapStyle={MAP_STYLE_URL}
-        logoEnabled={false}
-        attributionEnabled={true}
+        logo={false}
+        attribution={true}
         attributionPosition={{bottom: 8, left: 8}}>
-        <MapLibreGL.Camera
+        <Camera
           ref={cameraRef}
-          centerCoordinate={[userLocation.longitude, userLocation.latitude]}
-          zoomLevel={13}
-          animationDuration={1000}
+          center={[userLocation.longitude, userLocation.latitude]}
+          zoom={13}
         />
 
-        <MapLibreGL.UserLocation visible={true} />
+        <UserLocation />
 
         {stations.map(station => (
           <StationMarker
@@ -47,7 +44,7 @@ export default function MapView({
             onPress={onStationPress}
           />
         ))}
-      </MapLibreGL.MapView>
+      </Map>
     </View>
   );
 }

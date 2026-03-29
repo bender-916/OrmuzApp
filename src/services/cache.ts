@@ -2,14 +2,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Station} from '../types/station';
 import {CACHE_TTL_MS} from '../utils/constants';
 
-const CACHE_KEY = 'stations_cache';
-const TIMESTAMP_KEY = 'stations_cache_ts';
+function cacheKey(provinceId: string) {
+  return `stations_cache_${provinceId}`;
+}
+function timestampKey(provinceId: string) {
+  return `stations_cache_ts_${provinceId}`;
+}
 
-export async function getCachedStations(): Promise<Station[] | null> {
+export async function getCachedStations(
+  provinceId: string,
+): Promise<Station[] | null> {
   try {
     const [dataStr, tsStr] = await Promise.all([
-      AsyncStorage.getItem(CACHE_KEY),
-      AsyncStorage.getItem(TIMESTAMP_KEY),
+      AsyncStorage.getItem(cacheKey(provinceId)),
+      AsyncStorage.getItem(timestampKey(provinceId)),
     ]);
 
     if (!dataStr || !tsStr) {
@@ -27,9 +33,11 @@ export async function getCachedStations(): Promise<Station[] | null> {
   }
 }
 
-export async function getCachedStationsIgnoreTTL(): Promise<Station[] | null> {
+export async function getCachedStationsIgnoreTTL(
+  provinceId: string,
+): Promise<Station[] | null> {
   try {
-    const dataStr = await AsyncStorage.getItem(CACHE_KEY);
+    const dataStr = await AsyncStorage.getItem(cacheKey(provinceId));
     if (!dataStr) {
       return null;
     }
@@ -39,11 +47,14 @@ export async function getCachedStationsIgnoreTTL(): Promise<Station[] | null> {
   }
 }
 
-export async function cacheStations(stations: Station[]): Promise<void> {
+export async function cacheStations(
+  provinceId: string,
+  stations: Station[],
+): Promise<void> {
   try {
     await Promise.all([
-      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(stations)),
-      AsyncStorage.setItem(TIMESTAMP_KEY, Date.now().toString()),
+      AsyncStorage.setItem(cacheKey(provinceId), JSON.stringify(stations)),
+      AsyncStorage.setItem(timestampKey(provinceId), Date.now().toString()),
     ]);
   } catch {
     // Silently fail - cache is not critical

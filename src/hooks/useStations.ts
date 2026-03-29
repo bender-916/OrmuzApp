@@ -1,8 +1,9 @@
-import {useEffect, useState, useCallback} from 'react';
-import {fetchStations} from '../services/api';
+import {useEffect, useState, useCallback, useMemo} from 'react';
+import {fetchStationsByProvince} from '../services/api';
 import {parseAllStations} from '../services/parser';
 import {filterByProximity} from '../services/geo';
 import {getCachedStations, getCachedStationsIgnoreTTL, cacheStations} from '../services/cache';
+import {getProvinceId} from '../utils/provinces';
 import {Coordinate, Station} from '../types/station';
 import {MAX_STATIONS} from '../utils/constants';
 
@@ -27,18 +28,23 @@ export function useStations(
     lastUpdate: null,
   });
 
+  const provinceId = useMemo(
+    () => getProvinceId(location.latitude, location.longitude),
+    [location.latitude, location.longitude],
+  );
+
   const loadStations = useCallback(async () => {
     setState(prev => ({...prev, loading: true, error: null}));
 
     try {
       // Try cache first
-      let stations = await getCachedStations();
+      let stations = await getCachedStations(provinceId);
 
       if (!stations) {
-        // Fetch from API
-        const response = await fetchStations();
+        // Fetch only this province (~500-700 stations instead of 12,000)
+        const response = await fetchStationsByProvince(provinceId);
         stations = parseAllStations(response.ListaEESSPrecio);
-        await cacheStations(stations);
+        await cacheStations(provinceId, stations);
       }
 
       setState(prev => ({
@@ -50,7 +56,7 @@ export function useStations(
     } catch (err) {
       // If fetch fails, try cache regardless of TTL
       try {
-        const cached = await getCachedStationsIgnoreTTL();
+        const cached = await getCachedStationsIgnoreTTL(provinceId);
         if (cached) {
           setState(prev => ({
             ...prev,
@@ -72,7 +78,7 @@ export function useStations(
             : 'Error al cargar las gasolineras',
       }));
     }
-  }, []);
+  }, [provinceId]);
 
   // Filter by proximity when location/radius/allStations change
   useEffect(() => {
@@ -80,7 +86,6 @@ export function useStations(
       return;
     }
 
-    // Filter only stations that have the selected fuel type
     const withFuel = state.allStations.filter(s =>
       s.prices.some(p => p.fuelType === selectedFuelLabel),
     );

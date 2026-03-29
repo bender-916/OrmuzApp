@@ -1,8 +1,13 @@
 import {RawAPIResponse} from '../types/api';
-import {API_URL} from '../utils/constants';
 
-export async function fetchStations(): Promise<RawAPIResponse> {
-  const response = await fetch(API_URL);
+const API_BASE = 'https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes';
+
+export async function fetchStationsByProvince(
+  provinceId: string,
+): Promise<RawAPIResponse> {
+  const response = await fetch(
+    `${API_BASE}/EstacionesTerrestres/FiltroProvincia/${provinceId}`,
+  );
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
