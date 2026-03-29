@@ -301,10 +301,68 @@ Los IDs de provincia siguen el estándar INE (01 Álava → 52 Melilla).
 
 ## Troubleshooting (Windows)
 
+### `JAVA_HOME` no definido al ejecutar Gradle
+
+```
+ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+```
+
+**Causa**: Gradle necesita un JDK pero no hay ninguno en el PATH del sistema. Si no tienes JDK instalado por separado, Android Studio incluye el suyo propio.
+
+**Solución temporal** (en la misma sesión de PowerShell):
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+./gradlew assembleRelease
+```
+
+**Solución permanente** (guarda la variable para siempre):
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Android\Android Studio\jbr", "User")
+$currentPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+[System.Environment]::SetEnvironmentVariable("PATH", "C:\Program Files\Android\Android Studio\jbr\bin;$currentPath", "User")
+```
+
+Cierra y vuelve a abrir PowerShell para que surta efecto.
+
+---
+
+### APK debug abre con error "adb reverse tcp:8081 / running Metro"
+
+```
+Unable to load script. Make sure you're either running a Metro server
+or that your bundle is packaged correctly for release.
+```
+
+**Causa**: El APK debug está diseñado para desarrollo — carga el bundle JS desde el servidor Metro de tu PC (`localhost:8081`). Sin Metro corriendo o sin el túnel USB, falla.
+
+**Solución A — APK autónomo** (recomendado para instalar en otros dispositivos):
+
+```bash
+cd android && ./gradlew assembleRelease
+# APK en: android/app/build/outputs/apk/release/app-release-unsigned.apk
+```
+
+El APK release lleva el bundle JS embebido y no necesita Metro.
+
+**Solución B — Mantener debug con Metro** (solo para desarrollo con cable USB):
+
+```bash
+# Terminal 1: Metro
+npm start
+
+# Terminal 2: túnel
+adb reverse tcp:8081 tcp:8081
+```
+
+---
+
 ### `ANDROID_HOME` no definido
 
 ```
-error Android SDK root is not set.
+error Android SDK root is not set. Set it via ANDROID_HOME environment variable.
 ```
 
 **Solución**: Variable de entorno `ANDROID_HOME` → `C:\Users\<usuario>\AppData\Local\Android\Sdk`.
@@ -348,6 +406,98 @@ GC overhead limit exceeded
 ```
 
 **Solución**: Ya configurado en `gradle.properties` con `-Xmx4096m`. Si persiste, cierra otras apps.
+
+---
+
+### Gradle 9.x incompatible con React Native 0.84
+
+```
+Could not find method IBM_SEMERU() for arguments...
+```
+
+**Causa**: React Native 0.84.1 no es compatible con Gradle 9. Este proyecto ya está fijado en Gradle 8.13 en `gradle/wrapper/gradle-wrapper.properties`. Si actualizas Gradle manualmente, vuelve a:
+
+```properties
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.13-bin.zip
+```
+
+---
+
+### `storage-android:1.0.0` not found (async-storage v3)
+
+```
+Could not find com.reactnativecommunity.asyncstorage:storage-android:1.0.0
+```
+
+**Causa**: `@react-native-async-storage/async-storage` v3 publica su artefacto Android en un repositorio Maven local incluido en el paquete npm, no en Maven Central.
+
+**Solución**: Ya añadido en `android/build.gradle`:
+
+```gradle
+allprojects {
+  repositories {
+    maven {
+      url(new File(rootProject.projectDir,
+        "../node_modules/@react-native-async-storage/async-storage/android/local_repo"))
+    }
+  }
+}
+```
+
+---
+
+### App crashea al arrancar — `UIManagerModule` null
+
+```
+java.lang.NullPointerException: UIManagerModule is null
+```
+
+**Causa**: MapLibre v10 no es compatible con React Native New Architecture (Fabric). Aunque se desactive `newArchEnabled`, RN 0.84 activa Fabric de todos modos.
+
+**Solución**: Este proyecto ya usa MapLibre v11 (`^11.0.0-beta.21`), que sí soporta New Architecture. Si aparece de nuevo, verifica que `package.json` tenga la versión correcta y ejecuta `npm install`.
+
+---
+
+### App crashea — `ReactNativeHost` deprecado
+
+```
+java.lang.NoSuchMethodError: ReactNativeHost
+```
+
+**Causa**: MapLibre v10 referenciaba la clase `ReactNativeHost` eliminada en RN 0.84. Misma solución que el punto anterior — MapLibre v11 resuelve esto.
+
+---
+
+### `libreact_featureflagsjni.so` not found
+
+```
+java.lang.UnsatisfiedLinkError: couldn't find "libreact_featureflagsjni.so"
+```
+
+**Causa**: `MainApplication.kt` llamaba a `SoLoader.init()` directamente en vez de `loadReactNative(this)`, que es quien carga todas las librerías nativas correctamente.
+
+**Solución**: El `MainApplication.kt` correcto para RN 0.84:
+
+```kotlin
+override fun onCreate() {
+    super.onCreate()
+    loadReactNative(this)
+}
+```
+
+---
+
+### El emulador GPS aparece en California (o coordenadas por defecto)
+
+**Causa**: Los emuladores Android arrancan con una ubicación por defecto en EE.UU.
+
+**Solución**: Simula Madrid antes de abrir la app:
+
+```bash
+adb emu geo fix -3.7038 40.4168
+```
+
+O desde Android Studio: emulador > `...` (Extended Controls) > Location > introduce las coordenadas manualmente.
 
 ---
 
