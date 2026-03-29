@@ -530,6 +530,90 @@ curl https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCar
 
 ---
 
+### `assembleRelease` falla con "Read timed out" o "Host desconocido" en Maven Central
+
+```
+Could not download react-android-0.84.1-release.aar
+  > Read timed out
+Could not GET 'https://repo.maven.apache.org/...'
+  > Host desconocido (repo.maven.apache.org)
+```
+
+**Causa**: El APK release necesita descargar los `.aar` de React Native (~150 MB) desde Maven Central. Los `.aar` de debug y release son archivos distintos — el debug no los deja en caché. Si la red falla durante la descarga, Gradle aborta.
+
+**Solución A — APK debug con bundle JS embebido** (evita descargar los `.aar` de release):
+
+```powershell
+# Desde E:\Ormuz-app (raíz del proyecto)
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+New-Item -ItemType Directory -Force -Path android\app\src\main\assets
+npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android\app\src\main\assets\index.android.bundle --assets-dest android\app\src\main\res
+cd android
+.\gradlew assembleDebug
+```
+
+APK generado en `android\app\build\outputs\apk\debug\app-debug.apk`. Funciona sin Metro y con JS de producción.
+
+**Solución B — Reintentar `assembleRelease`** cuando la red esté estable. Gradle retoma desde donde se quedó:
+
+```powershell
+.\gradlew assembleRelease
+```
+
+Los timeouts ya están ampliados a 5 minutos en `gradle.properties`.
+
+---
+
+### `npx` bloqueado por PowerShell — "la ejecución de scripts está deshabilitada"
+
+```
+npx : No se puede cargar el archivo npx.ps1 porque la ejecución de scripts está deshabilitada en este sistema.
+```
+
+**Causa**: La política de ejecución de PowerShell bloquea scripts `.ps1` de terceros por defecto en Windows.
+
+**Solución** (solo afecta a la sesión actual, no cambia la política global):
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+Ejecuta esto una vez al abrir PowerShell antes de usar `npx`, `npm`, etc.
+
+---
+
+### `./gradlew` no reconocido como comando
+
+```
+El término './gradlew' no se reconoce como nombre de un cmdlet...
+```
+
+**Causa**: En PowerShell, `./` solo funciona si estás en la carpeta correcta. Este error suele ocurrir por estar en `E:\Ormuz-app\android\android` (doble `android`) en vez de `E:\Ormuz-app\android`.
+
+**Solución**: Verifica la ruta y usa `.\gradlew` (barra invertida) en PowerShell:
+
+```powershell
+cd E:\Ormuz-app\android
+.\gradlew assembleDebug
+```
+
+---
+
+### Dónde encontrar los APKs generados
+
+| Tipo | Ruta |
+|------|------|
+| Debug (con bundle embebido) | `android\app\build\outputs\apk\debug\app-debug.apk` |
+| Release | `android\app\build\outputs\apk\release\app-release.apk` |
+
+Instalar en dispositivo conectado:
+
+```powershell
+adb install android\app\build\outputs\apk\release\app-release.apk
+```
+
+---
+
 ## Dependencias principales
 
 | Paquete | Versión | Propósito |
