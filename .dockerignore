@@ -1,0 +1,10 @@
+node_modules/
+android/.gradle/
+android/app/build/
+.git/
+output/
+ios/
+.claude/
+__tests__/
+*.md
+.bundle/
