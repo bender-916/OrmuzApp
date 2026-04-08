@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useRef} from 'react';
+import React, {useCallback, useMemo, useRef} from 'react';
 import {StyleSheet, Text, View, TouchableOpacity, Linking} from 'react-native';
 import BottomSheet, {BottomSheetScrollView} from '@gorhom/bottom-sheet';
 import {Station} from '../../types/station';
@@ -19,11 +19,8 @@ export default function StationDetailSheet({
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['35%', '60%'], []);
 
-  useEffect(() => {
-    if (station && bottomSheetRef.current) {
-      bottomSheetRef.current.snapToIndex(0);
-    }
-  }, [station]);
+  // Use index prop: -1 = closed, 0 = first snap point (open)
+  const currentIndex = station ? 0 : -1;
 
   const handleNavigate = useCallback(() => {
     if (!station) return;
@@ -36,47 +33,52 @@ export default function StationDetailSheet({
     });
   }, [station]);
 
-  if (!station) return null;
-
   return (
     <BottomSheet
       ref={bottomSheetRef}
       snapPoints={snapPoints}
+      index={currentIndex}
       enablePanDownToClose
       onClose={onClose}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.indicator}>
       <BottomSheetScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.name}>{station.name}</Text>
-            <Text style={styles.address}>
-              {station.address}, {station.city}
-            </Text>
-            {station.distance !== undefined && (
-              <Text style={styles.distance}>
-                {formatDistance(station.distance)}
-              </Text>
-            )}
-          </View>
-        </View>
+        {station ? (
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerText}>
+                <Text style={styles.name}>{station.name}</Text>
+                <Text style={styles.address}>
+                  {station.address}, {station.city}
+                </Text>
+                {station.distance !== undefined && (
+                  <Text style={styles.distance}>
+                    {formatDistance(station.distance)}
+                  </Text>
+                )}
+              </View>
+            </View>
 
-        <Text style={styles.schedule}>{station.schedule}</Text>
+            <Text style={styles.schedule}>{station.schedule}</Text>
 
-        <View style={styles.pricesContainer}>
-          <Text style={styles.sectionTitle}>Precios</Text>
-          {station.prices.map(fuel => (
-            <PriceRow
-              key={fuel.fuelType}
-              fuel={fuel}
-              isSelected={fuel.fuelType === selectedFuelLabel}
-            />
-          ))}
-        </View>
+            <View style={styles.pricesContainer}>
+              <Text style={styles.sectionTitle}>Precios</Text>
+              {station.prices.map(fuel => (
+                <PriceRow
+                  key={fuel.fuelType}
+                  fuel={fuel}
+                  isSelected={fuel.fuelType === selectedFuelLabel}
+                />
+              ))}
+            </View>
 
-        <TouchableOpacity style={styles.navButton} onPress={handleNavigate}>
-          <Text style={styles.navButtonText}>Cómo llegar</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.navButton} onPress={handleNavigate}>
+              <Text style={styles.navButtonText}>Cómo llegar</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.emptyContainer} />
+        )}
       </BottomSheetScrollView>
     </BottomSheet>
   );
@@ -149,5 +151,8 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  emptyContainer: {
+    height: 1,
   },
 });

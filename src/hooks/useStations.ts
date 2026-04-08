@@ -1,4 +1,4 @@
-import {useEffect, useState, useCallback, useMemo} from 'react';
+import {useEffect, useState, useCallback, useMemo, useRef} from 'react';
 import {fetchStationsByProvince} from '../services/api';
 import {parseAllStations} from '../services/parser';
 import {filterByProximity} from '../services/geo';
@@ -12,7 +12,7 @@ export function useStations(
   radiusKm: number,
   selectedFuelLabel: string,
 ) {
-  // Estados separados para evitar problemas de dependencias circulares
+  // Separate state to avoid dependency issues with object comparison
   const [allStations, setAllStations] = useState<Station[]>([]);
   const [nearbyStations, setNearbyStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,59 +24,79 @@ export function useStations(
     [location.latitude, location.longitude],
   );
 
+  // Keep track of current province to avoid stale closures
+  const currentProvinceRef = useRef(provinceId);
+  currentProvinceRef.current = provinceId;
+
+  // Load stations for the current province
   const loadStations = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       // Try cache first
       let stations = await getCachedStations(provinceId);
+
       if (!stations) {
         // Fetch only this province (~500-700 stations instead of 12,000)
         const response = await fetchStationsByProvince(provinceId);
         stations = parseAllStations(response.ListaEESSPrecio);
         await cacheStations(provinceId, stations);
       }
-      setAllStations(stations);
-      setLastUpdate(new Date());
-      setLoading(false);
+
+      // Only update if province hasn't changed while we were fetching
+      if (currentProvinceRef.current === provinceId) {
+        setAllStations(stations!);
+        setLastUpdate(new Date());
+        setLoading(false);
+      }
     } catch (err) {
       // If fetch fails, try cache regardless of TTL
       try {
         const cached = await getCachedStationsIgnoreTTL(provinceId);
         if (cached) {
           setAllStations(cached);
-          setError('Sin conexión. Mostrando datos en caché.');
           setLastUpdate(new Date());
           setLoading(false);
+          setError('Sin conexión. Mostrando datos en caché.');
           return;
         }
       } catch {}
-      setError(err instanceof Error ? err.message : 'Error al cargar las gasolineras');
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Error al cargar las gasolineras',
+      );
       setLoading(false);
     }
   }, [provinceId]);
 
-  // Load stations when provinceId changes
+  // Load stations when province changes
   useEffect(() => {
     loadStations();
   }, [loadStations]);
 
-  // Filter by proximity when allStations, location, radius or fuelType change
+  // Filter by proximity when inputs change — separate from loading
   useEffect(() => {
+    // Don't filter if no stations loaded yet
     if (allStations.length === 0) {
-      setNearbyStations([]);
       return;
     }
-    
-    const withFuel = allStations.filter(s => 
+
+    // Filter stations that have the selected fuel type
+    const withFuel = allStations.filter(s =>
       s.prices.some(p => p.fuelType === selectedFuelLabel),
     );
+
+    // Filter by proximity to user location
     const nearby = filterByProximity(
       withFuel,
       location,
       radiusKm,
       MAX_STATIONS,
     );
+
     setNearbyStations(nearby);
   }, [allStations, location, radiusKm, selectedFuelLabel]);
 
