@@ -7,26 +7,17 @@ import {getProvinceId} from '../utils/provinces';
 import {Coordinate, Station} from '../types/station';
 import {MAX_STATIONS} from '../utils/constants';
 
-interface StationsState {
-  allStations: Station[];
-  nearbyStations: Station[];
-  loading: boolean;
-  error: string | null;
-  lastUpdate: Date | null;
-}
-
 export function useStations(
   location: Coordinate,
   radiusKm: number,
   selectedFuelLabel: string,
 ) {
-  const [state, setState] = useState<StationsState>({
-    allStations: [],
-    nearbyStations: [],
-    loading: true,
-    error: null,
-    lastUpdate: null,
-  });
+  // Estados separados para evitar problemas de dependencias circulares
+  const [allStations, setAllStations] = useState<Station[]>([]);
+  const [nearbyStations, setNearbyStations] = useState<Station[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const provinceId = useMemo(
     () => getProvinceId(location.latitude, location.longitude),
@@ -34,78 +25,67 @@ export function useStations(
   );
 
   const loadStations = useCallback(async () => {
-    setState(prev => ({...prev, loading: true, error: null}));
-
+    setLoading(true);
+    setError(null);
     try {
       // Try cache first
       let stations = await getCachedStations(provinceId);
-
       if (!stations) {
         // Fetch only this province (~500-700 stations instead of 12,000)
         const response = await fetchStationsByProvince(provinceId);
         stations = parseAllStations(response.ListaEESSPrecio);
         await cacheStations(provinceId, stations);
       }
-
-      setState(prev => ({
-        ...prev,
-        allStations: stations!,
-        loading: false,
-        lastUpdate: new Date(),
-      }));
+      setAllStations(stations);
+      setLastUpdate(new Date());
+      setLoading(false);
     } catch (err) {
       // If fetch fails, try cache regardless of TTL
       try {
         const cached = await getCachedStationsIgnoreTTL(provinceId);
         if (cached) {
-          setState(prev => ({
-            ...prev,
-            allStations: cached,
-            loading: false,
-            error: 'Sin conexión. Mostrando datos en caché.',
-            lastUpdate: new Date(),
-          }));
+          setAllStations(cached);
+          setError('Sin conexión. Mostrando datos en caché.');
+          setLastUpdate(new Date());
+          setLoading(false);
           return;
         }
       } catch {}
-
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error:
-          err instanceof Error
-            ? err.message
-            : 'Error al cargar las gasolineras',
-      }));
+      setError(err instanceof Error ? err.message : 'Error al cargar las gasolineras');
+      setLoading(false);
     }
   }, [provinceId]);
 
-  // Filter by proximity when location/radius/allStations change
+  // Load stations when provinceId changes
   useEffect(() => {
-    if (state.allStations.length === 0) {
+    loadStations();
+  }, [loadStations]);
+
+  // Filter by proximity when allStations, location, radius or fuelType change
+  useEffect(() => {
+    if (allStations.length === 0) {
+      setNearbyStations([]);
       return;
     }
-
-    const withFuel = state.allStations.filter(s =>
+    
+    const withFuel = allStations.filter(s => 
       s.prices.some(p => p.fuelType === selectedFuelLabel),
     );
-
     const nearby = filterByProximity(
       withFuel,
       location,
       radiusKm,
       MAX_STATIONS,
     );
-
-    setState(prev => ({...prev, nearbyStations: nearby}));
-  }, [state.allStations, location, radiusKm, selectedFuelLabel]);
-
-  useEffect(() => {
-    loadStations();
-  }, [loadStations]);
+    setNearbyStations(nearby);
+  }, [allStations, location, radiusKm, selectedFuelLabel]);
 
   return {
-    ...state,
+    allStations,
+    nearbyStations,
+    loading,
+    error,
+    lastUpdate,
     refresh: loadStations,
   };
 }
