@@ -86,11 +86,13 @@ function App() {
             <ErrorBanner message={error} onDismiss={handleDismissError} />
           )}
 
-          <StationDetailSheet
-            station={selectedStation}
-            selectedFuelLabel={selectedFuelLabel}
-            onClose={handleCloseDetail}
-          />
+          {selectedStation && (
+            <StationDetailSheet
+              station={selectedStation}
+              selectedFuelLabel={selectedFuelLabel}
+              onClose={handleCloseDetail}
+            />
+          )}
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>

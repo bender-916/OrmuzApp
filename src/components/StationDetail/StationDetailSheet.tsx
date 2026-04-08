@@ -19,9 +19,6 @@ export default function StationDetailSheet({
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['35%', '60%'], []);
 
-  // Use index prop: -1 = closed, 0 = first snap point (open)
-  const currentIndex = station ? 0 : -1;
-
   const handleNavigate = useCallback(() => {
     if (!station) return;
     const url = `geo:${station.latitude},${station.longitude}?q=${station.latitude},${station.longitude}(${encodeURIComponent(station.name)})`;
@@ -33,52 +30,47 @@ export default function StationDetailSheet({
     });
   }, [station]);
 
+  if (!station) return null;
+
   return (
     <BottomSheet
       ref={bottomSheetRef}
       snapPoints={snapPoints}
-      index={currentIndex}
       enablePanDownToClose
       onClose={onClose}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.indicator}>
       <BottomSheetScrollView contentContainerStyle={styles.content}>
-        {station ? (
-          <>
-            <View style={styles.header}>
-              <View style={styles.headerText}>
-                <Text style={styles.name}>{station.name}</Text>
-                <Text style={styles.address}>
-                  {station.address}, {station.city}
-                </Text>
-                {station.distance !== undefined && (
-                  <Text style={styles.distance}>
-                    {formatDistance(station.distance)}
-                  </Text>
-                )}
-              </View>
-            </View>
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.name}>{station.name}</Text>
+            <Text style={styles.address}>
+              {station.address}, {station.city}
+            </Text>
+            {station.distance !== undefined && (
+              <Text style={styles.distance}>
+                {formatDistance(station.distance)}
+              </Text>
+            )}
+          </View>
+        </View>
 
-            <Text style={styles.schedule}>{station.schedule}</Text>
+        <Text style={styles.schedule}>{station.schedule}</Text>
 
-            <View style={styles.pricesContainer}>
-              <Text style={styles.sectionTitle}>Precios</Text>
-              {station.prices.map(fuel => (
-                <PriceRow
-                  key={fuel.fuelType}
-                  fuel={fuel}
-                  isSelected={fuel.fuelType === selectedFuelLabel}
-                />
-              ))}
-            </View>
+        <View style={styles.pricesContainer}>
+          <Text style={styles.sectionTitle}>Precios</Text>
+          {station.prices.map(fuel => (
+            <PriceRow
+              key={fuel.fuelType}
+              fuel={fuel}
+              isSelected={fuel.fuelType === selectedFuelLabel}
+            />
+          ))}
+        </View>
 
-            <TouchableOpacity style={styles.navButton} onPress={handleNavigate}>
-              <Text style={styles.navButtonText}>Cómo llegar</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <View style={styles.emptyContainer} />
-        )}
+        <TouchableOpacity style={styles.navButton} onPress={handleNavigate}>
+          <Text style={styles.navButtonText}>Cómo llegar</Text>
+        </TouchableOpacity>
       </BottomSheetScrollView>
     </BottomSheet>
   );
@@ -151,8 +143,5 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
-  },
-  emptyContainer: {
-    height: 1,
   },
 });
