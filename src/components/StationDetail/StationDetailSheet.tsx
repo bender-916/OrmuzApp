@@ -1,4 +1,4 @@
-import React, {useCallback, useMemo, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {StyleSheet, Text, View, TouchableOpacity, Linking} from 'react-native';
 import BottomSheet, {BottomSheetScrollView} from '@gorhom/bottom-sheet';
 import {Station} from '../../types/station';
@@ -18,6 +18,13 @@ export default function StationDetailSheet({
 }: Props) {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['35%', '60%'], []);
+
+  // Open bottom sheet when station changes from null to a value
+  useEffect(() => {
+    if (station && bottomSheetRef.current) {
+      bottomSheetRef.current.snapToIndex(0);
+    }
+  }, [station]);
 
   const handleNavigate = useCallback(() => {
     if (!station) return;
